@@ -2,14 +2,70 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Modal, StyleSheet, Text, Pressable, View, Animated } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
+import { Audio } from 'expo-av';
+import { Image } from 'expo-image';
 
 const App = () => {
   const [showModal, setShowModal] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
   
   // Animation values
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const modalTranslateY = useRef(new Animated.Value(1000)).current;
+
+  // Load audio on component mount
+  useEffect(() => {
+    loadSound();
+    return () => {
+      // Cleanup sound on unmount
+      if (sound) {
+        sound.unloadAsync();
+      }
+    };
+  }, []);
+
+  // Handle audio playback based on modal visibility
+  useEffect(() => {
+    if (isVisible && sound) {
+      playSound();
+    } else if (!isVisible && sound) {
+      stopSound();
+    }
+  }, [isVisible, sound]);
+
+  const loadSound = async () => {
+    try {
+      const { sound: loadedSound } = await Audio.Sound.createAsync(
+        require('./assets/sounds/Maxwell the cat theme.mp3'),
+        { shouldPlay: false, isLooping: true }
+      );
+      setSound(loadedSound);
+    } catch (error) {
+      console.error('Error loading sound:', error);
+    }
+  };
+
+  const playSound = async () => {
+    try {
+      if (sound) {
+        await sound.setPositionAsync(0);
+        await sound.playAsync();
+      }
+    } catch (error) {
+      console.error('Error playing sound:', error);
+    }
+  };
+
+  const stopSound = async () => {
+    try {
+      if (sound) {
+        await sound.stopAsync();
+      }
+    } catch (error) {
+      console.error('Error stopping sound:', error);
+    }
+  };
 
   useEffect(() => {
     if (isVisible) {
@@ -100,9 +156,16 @@ const App = () => {
               }
             ]}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Modal Message</Text>
+              <Text style={styles.modalTitle}>Maxwell the Cat</Text>
+              
+              <Image
+                source={require('./assets/images/maxwell-spin.gif')}
+                style={styles.maxwellGif}
+                contentFit="contain"
+              />
+              
               <Text style={styles.modalText}>
-                This is your modal content. Press the button below to close.
+                Vibing to the iconic Maxwell theme
               </Text>
               
               <Pressable
@@ -146,7 +209,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#2196F3',
   },
   buttonClose: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#000',
     marginTop: 20,
   },
   buttonPressed: {
@@ -192,12 +255,20 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 15,
     textAlign: 'center',
+    color: '#000',
+  },
+  maxwellGif: {
+    width: 200,
+    height: 200,
+    marginBottom: 20,
+    borderRadius: 12,
   },
   modalText: {
     marginBottom: 15,
     textAlign: 'center',
     fontSize: 16,
     lineHeight: 24,
+    color: '#000',
   },
 });
 
