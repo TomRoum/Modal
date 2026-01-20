@@ -1,9 +1,63 @@
-import React, { useState } from 'react';
-import { Modal, StyleSheet, Text, Pressable, View } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { Modal, StyleSheet, Text, Pressable, View, Animated } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
 
 const App = () => {
-  const [modalVisible, setModalVisible] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  
+  // Animation values
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const modalTranslateY = useRef(new Animated.Value(1000)).current;
+
+  useEffect(() => {
+    if (isVisible) {
+      // Opening animations
+      setShowModal(true);
+      Animated.parallel([
+        Animated.timing(overlayOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.spring(modalTranslateY, {
+          toValue: 0,
+          delay: 50,
+          tension: 65,
+          friction: 10,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else if (showModal) {
+      // Closing animations
+      Animated.parallel([
+        Animated.timing(overlayOpacity, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(modalTranslateY, {
+          toValue: 1000,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        // After animation completes, hide modal and reset values
+        setShowModal(false);
+        overlayOpacity.setValue(0);
+        modalTranslateY.setValue(1000);
+      });
+    }
+  }, [isVisible]);
+
+  const handleOpen = () => {
+    setIsVisible(true);
+  };
+
+  const handleClose = () => {
+    setIsVisible(false);
+  };
 
   return (
     <SafeAreaProvider>
@@ -14,16 +68,37 @@ const App = () => {
             styles.buttonOpen,
             pressed && styles.buttonPressed
           ]}
-          onPress={() => setModalVisible(true)}>
+          onPress={handleOpen}>
           <Text style={styles.buttonText}>Show modal message</Text>
         </Pressable>
 
         <Modal
-          animationType="slide"
           transparent={true}
-          visible={modalVisible}
-          onRequestClose={() => setModalVisible(false)}>
-          <View style={styles.modalOverlay}>
+          visible={showModal}
+          onRequestClose={handleClose}
+          animationType="none"
+          statusBarTranslucent>
+          
+          <Animated.View 
+            style={[
+              styles.modalOverlay,
+              { opacity: overlayOpacity }
+            ]}>
+            <BlurView intensity={20} style={StyleSheet.absoluteFill}>
+              <Pressable 
+                style={styles.overlayPressable}
+                onPress={handleClose}
+              />
+            </BlurView>
+          </Animated.View>
+
+          <Animated.View
+            style={[
+              styles.modalWrapper,
+              {
+                transform: [{ translateY: modalTranslateY }]
+              }
+            ]}>
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Modal Message</Text>
               <Text style={styles.modalText}>
@@ -36,11 +111,11 @@ const App = () => {
                   styles.buttonClose,
                   pressed && styles.buttonPressed
                 ]}
-                onPress={() => setModalVisible(false)}>
+                onPress={handleClose}>
                 <Text style={styles.buttonText}>Close</Text>
               </Pressable>
             </View>
-          </View>
+          </Animated.View>
         </Modal>
       </SafeAreaView>
     </SafeAreaProvider>
@@ -84,10 +159,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   modalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  },
+  overlayPressable: {
+    flex: 1,
+  },
+  modalWrapper: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    pointerEvents: 'box-none',
   },
   modalContent: {
     margin: 20,
@@ -98,11 +180,11 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
     minWidth: 300,
   },
   modalTitle: {
